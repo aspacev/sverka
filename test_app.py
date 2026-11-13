@@ -245,6 +245,44 @@ def test_partial_month_and_rows_outside_period(site):
     assert html.count('<a class="cell bad"') == 2 and ">!<" in html
 
 
+def test_period_is_optional_and_taken_from_file(site):
+    assert site.compare(BASE, changed(), period=("", "")).status_code == 302
+    run = site.query("SELECT * FROM runs")[0]
+    # даты в файле: 5 июля - 28 сентября; период - целыми месяцами
+    assert (run["period_from"], run["period_to"], run["period_auto"]) == (
+        "2026-07-01", "2026-09-30", 1)
+    assert (run["status"], run["by_month"], run["unplaced"]) == ("diff", 1, 0)
+    months = {m["month"]: (m["bad_rows"], m["partial"])
+              for m in site.query("SELECT * FROM run_months")}
+    assert months == {"2026-07": (1, 0), "2026-08": (0, 0), "2026-09": (2, 0)}
+    assert "взят из дат в файле" in page(site, "/runs/1")
+    assert page(site, "/grid?system=1&end=2026-09").count('<a class="cell bad"') == 2
+    assert "01.07.2026 — 30.09.2026" in page(site, "/history")
+
+
+def test_no_period_and_no_date_column(site):
+    no_date = {k: v for k, v in BASE.items() if k != "Дата"}
+    other = {k: list(v) for k, v in no_date.items()}
+    other["Сумма"][0] = 11
+    assert site.compare(no_date, other, period=("", "")).status_code == 302
+    run = site.query("SELECT * FROM runs")[0]
+    assert (run["status"], run["period_from"], run["period_auto"], run["by_month"]) == (
+        "diff", "", 0, 0)
+    assert site.query("SELECT COUNT(*) FROM run_months")[0][0] == 0
+    html = page(site, "/runs/1")
+    assert "период не указан" in html and "в сетке эта сверка не показывается" in html
+    assert "не указан" in page(site, "/history")
+    assert '<a class="cell bad"' not in page(site, "/grid?system=1")
+    assert site.get("/runs/1/excel").status_code == 200
+
+
+def test_period_from_file_ignores_wild_dates(site):
+    wild = dict(BASE, Дата=[datetime(1990, 1, 1)] + DATES[1:])
+    site.compare(wild, wild, period=("", ""))
+    run = site.query("SELECT * FROM runs")[0]
+    assert (run["status"], run["period_from"], run["by_month"]) == ("ok", "", 0)
+
+
 def test_options_are_applied(site):
     other = dict(BASE, Сумма=[str(v) for v in BASE["Сумма"]])
     site.compare(BASE, other)
@@ -270,7 +308,8 @@ def test_broken_file_is_saved_as_error(site):
     ({"system": ""}, "Выберите систему"),
     ({"report": 3}, "относится к другой системе"),
     ({"from": "2026-10-01"}, "позже даты"),
-    ({"to": ""}, "Укажите даты периода"),
+    ({"to": ""}, "Укажите обе даты периода"),
+    ({"from": "", "to": "2026-09-30"}, "Укажите обе даты периода"),
     ({"report": ""}, "Выберите отчёт"),
     ({"file_a": (io.BytesIO(b"x"), "a.csv")}, "должен быть Excel"),
 ])

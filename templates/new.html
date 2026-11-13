@@ -26,14 +26,16 @@
   </div>
 
   <div class="two">
-    <label>Период с<input type="date" name="from" id="from" value="{{ form.get('from', '') }}" required></label>
-    <label>Период по<input type="date" name="to" id="to" value="{{ form.get('to', '') }}" required></label>
+    <label>Период с <small class="opt">необязательно</small><input type="date" name="from" id="from" value="{{ form.get('from', '') }}"></label>
+    <label>Период по <small class="opt">необязательно</small><input type="date" name="to" id="to" value="{{ form.get('to', '') }}"></label>
   </div>
   <div class="quick">
     <button type="button" data-period="month">Прошлый месяц</button>
     <button type="button" data-period="quarter">Прошлый квартал</button>
     <button type="button" data-period="year">С начала года</button>
+    <button type="button" data-period="clear">Очистить</button>
   </div>
+  <p class="hint">Если период не указать, сайт возьмёт его из дат в самих файлах.</p>
 
   <div class="two">
     {% for side, title in (('a', 'Файл из ' ~ dwh_a ~ ' (эталон)'), ('b', 'Файл из ' ~ dwh_b)) %}

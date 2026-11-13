@@ -34,7 +34,7 @@
       <td>{{ r.created_at|dt }}</td>
       <td>{{ r.system }}</td>
       <td><a href="{{ url_for('run', run_id=r.id) }}">{{ r.report }}</a></td>
-      <td>{{ r.period_from|d }} — {{ r.period_to|d }}</td>
+      <td>{% if r.period_from %}{{ r.period_from|d }} — {{ r.period_to|d }}{% else %}<span class="sub">не указан</span>{% endif %}</td>
       <td><span class="pill {{ kind }}">{{ label }}</span></td>
     </tr>
   {% endfor %}

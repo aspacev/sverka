@@ -3,7 +3,8 @@
 {% block content %}
 {% set kind, label = run_label(run) %}
 <h1>{{ run.report }} · {{ run.system }}</h1>
-<p class="sub">{{ dwh_a }} ↔ {{ dwh_b }} · период {{ run.period_from|d }} — {{ run.period_to|d }} · сверено {{ run.created_at|dt }} ·
+<p class="sub">{{ dwh_a }} ↔ {{ dwh_b }} ·
+  {% if run.period_from %}период {{ run.period_from|d }} — {{ run.period_to|d }}{{ ' (взят из дат в файле)' if run.period_auto }}{% else %}период не указан{% endif %} · сверено {{ run.created_at|dt }} ·
   файлы: {{ run.file_a }} и {{ run.file_b }}</p>
 
 {% if run.status == 'error' %}
@@ -36,6 +37,11 @@
       {% endif %}
     </div>
     <p class="sub">Месяц строки взят из столбца «{{ run.date_column }}».</p>
+  {% elif not run.period_from %}
+    <p class="note warn">Период не указан, и взять его из файла не удалось: в отчёте не найден столбец с датой.
+      Поэтому разбивки по месяцам нет, и в сетке эта сверка не показывается.
+      Нажмите «Сверить заново» и укажите период, либо задайте столбец с датой в
+      <a href="{{ url_for('dictionaries', system=run.system_id) }}#reports">справочнике отчётов</a>.</p>
   {% else %}
     <p class="note warn">В отчёте не найден столбец с датой, поэтому расхождения не разложены по месяцам.
       Столбец можно указать в <a href="{{ url_for('dictionaries') }}#reports">справочнике отчётов</a> и сверить заново.</p>

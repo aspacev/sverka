@@ -27,6 +27,11 @@ document.querySelectorAll('.drop').forEach(drop => {
 const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 document.querySelectorAll('[data-period]').forEach(button => button.addEventListener('click', () => {
   const now = new Date(), y = now.getFullYear(), m = now.getMonth();
+  if (button.dataset.period === 'clear') {
+    document.getElementById('from').value = '';
+    document.getElementById('to').value = '';
+    return;
+  }
   let from, to;
   if (button.dataset.period === 'month') { from = new Date(y, m - 1, 1); to = new Date(y, m, 0); }
   else if (button.dataset.period === 'quarter') {

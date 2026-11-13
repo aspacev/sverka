@@ -9,6 +9,7 @@ import compare_excel as ce
 
 MONTHS = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август",
           "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"]
+MAX_AUTO_MONTHS = 60   # период из файла длиннее этого считаем ошибкой в датах
 DATE_FORMATS = ((10, "%d.%m.%Y"), (10, "%Y-%m-%d"), (10, "%d/%m/%Y"), (7, "%Y-%m"), (7, "%m.%Y"))
 
 
@@ -65,6 +66,7 @@ def find_date_column(df, period_from, period_to):
     """
     Ищет в листе столбец с датами: почти все значения - даты, значений больше
     одного и не меньше половины попадает в период сверки. Возвращает название.
+    Если период не задан (None), подходит первый столбец с датами.
     """
     best, best_score = None, 0.0
     for column in df.columns:
@@ -76,6 +78,8 @@ def find_date_column(df, period_from, period_to):
             continue
         if len(values) > 1 and len({str(v) for v in values}) == 1:
             continue          # одно значение на весь файл: это не дата записи
+        if period_from is None:
+            return column     # период не задан: берём первый столбец с датами
         score = sum(period_from <= d <= period_to for d in dates) / len(dates)
         if score >= 0.5 and score > best_score:
             best, best_score = column, score
@@ -177,7 +181,22 @@ def _compare(conn, data_dir, run_id, file_a, file_b, system_a, system_b, report,
             if column is not None:
                 found = found or str(column).strip()
 
+    # Период не задан: берём его из дат в файлах, целыми месяцами
+    period_auto = False
+    if period_from is None:
+        dates = [d for info in sheets.values() for df, column in info
+                 if df is not None and column is not None
+                 for d in map(to_date, df[column].tolist()) if d is not None]
+        if dates and len(months_between(min(dates), max(dates))) <= MAX_AUTO_MONTHS:
+            period_from = month_bounds(month_key(min(dates)))[0]
+            period_to = month_bounds(month_key(max(dates)))[1]
+            period_auto = True
+        else:
+            found = None       # дат нет или разброс слишком велик: без разбивки
+
     def month_of(label, row_a, row_b):
+        if period_from is None:
+            return None
         for (df, column), row in zip(sheet_info(label), (row_a, row_b)):
             if df is None or column is None or not isinstance(row, int):
                 continue
@@ -207,7 +226,7 @@ def _compare(conn, data_dir, run_id, file_a, file_b, system_a, system_b, report,
 
     conn.execute("DELETE FROM run_months WHERE run_id = ?", (run_id,))
     conn.execute("DELETE FROM run_diffs WHERE run_id = ?", (run_id,))
-    for month in months_between(period_from, period_to):
+    for month in months_between(period_from, period_to) if period_from else ():
         first, last = month_bounds(month)
         partial = period_from > first or period_to < last
         conn.execute("INSERT INTO run_months VALUES (?, ?, ?, ?)",
@@ -255,6 +274,9 @@ def _compare(conn, data_dir, run_id, file_a, file_b, system_a, system_b, report,
         "changed": t["changed"], "only_a": t["only_a"], "only_b": t["only_b"],
         "cells": t["cells1"] + t["cells2"] + t["cells3"],
         "structure": t["structure"] + t["const_real"],
+        "period_from": period_from.isoformat() if period_from else "",
+        "period_to": period_to.isoformat() if period_to else "",
+        "period_auto": int(period_auto),
         "by_month": int(found is not None), "date_column": found,
         "unplaced": unplaced, "summary": dump(summary),
     }

@@ -130,9 +130,12 @@ def create_app(data_dir=None):
                 errors.append("Выберите систему.")
             elif report and report["system_id"] != system["id"]:
                 errors.append("Этот отчёт относится к другой системе. Выберите отчёт заново.")
-            if not d_from or not d_to:
-                errors.append("Укажите даты периода.")
-            elif d_from > d_to:
+            # Период необязателен: без него он берётся из дат в самих файлах
+            has_from = bool((form.get("from") or "").strip())
+            has_to = bool((form.get("to") or "").strip())
+            if has_from != has_to or (has_from and not (d_from and d_to)):
+                errors.append("Укажите обе даты периода или оставьте обе пустыми.")
+            elif d_from and d_from > d_to:
                 errors.append("Дата «с» позже даты «по».")
             for f, title in ((file_a, DWH_A), (file_b, DWH_B)):
                 if not f or not f.filename:
@@ -162,7 +165,7 @@ def create_app(data_dir=None):
                     "period_from, period_to, status, error_text, file_a, file_b, options) "
                     "VALUES (?, ?, ?, ?, ?, 'error', 'Сверка не завершена', ?, ?, ?)",
                     (datetime.now().isoformat(" ", "seconds"), report["id"], system["id"],
-                     d_from.isoformat(), d_to.isoformat(),
+                     d_from.isoformat() if d_from else "", d_to.isoformat() if d_to else "",
                      safe_name(file_a.filename), safe_name(file_b.filename),
                      json.dumps(options, ensure_ascii=False)))
                 run_id = cur.lastrowid
@@ -234,8 +237,9 @@ def create_app(data_dir=None):
         path = data / "reports" / f"run_{run_id}.xlsx"
         if not path.is_file():
             abort(404)
-        name = safe_name(f"{run['report']}_{run['system']}_"
-                         f"{run['period_from']}_{run['period_to']}.xlsx")
+        period = (f"{run['period_from']}_{run['period_to']}" if run["period_from"]
+                  else run["created_at"][:10])
+        name = safe_name(f"{run['report']}_{run['system']}_{period}.xlsx")
         return send_file(path, as_attachment=True, download_name=name)
 
     @app.route("/runs/<int:run_id>/delete", methods=["POST"])

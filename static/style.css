@@ -38,6 +38,8 @@ h3 { font-size: 15px; margin: 16px 0 6px; }
 label { display: block; font-size: 13px; color: var(--muted); margin: 0 0 14px; }
 label small { display: block; margin-top: 3px; }
 p.field { font-size: 13px; color: var(--muted); margin: 0 0 4px; }
+label small.opt { display: inline; margin-left: 4px; opacity: .8; }
+p.hint { font-size: 13px; color: var(--muted); margin: -8px 0 16px; }
 input, select, textarea { display: block; width: 100%; margin-top: 4px; padding: 7px 10px; font: inherit; color: var(--text);
   background: var(--card); border: 1px solid var(--line); border-radius: 8px; }
 input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }

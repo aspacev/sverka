@@ -22,8 +22,9 @@ CREATE TABLE IF NOT EXISTS runs (
     created_at  TEXT NOT NULL,
     report_id   INTEGER NOT NULL REFERENCES reports(id),
     system_id   INTEGER NOT NULL REFERENCES systems(id),   -- система-источник данных
-    period_from TEXT NOT NULL,                 -- ГГГГ-ММ-ДД
+    period_from TEXT NOT NULL,                 -- ГГГГ-ММ-ДД; пусто, если период неизвестен
     period_to   TEXT NOT NULL,
+    period_auto INTEGER DEFAULT 0,             -- 1: период взят из дат в файле
     status      TEXT NOT NULL,                 -- ok / diff / error
     error_text  TEXT,
     file_a      TEXT,                          -- имена загруженных файлов
@@ -91,5 +92,8 @@ def init(path):
         conn.executescript("DROP TABLE run_diffs; DROP TABLE run_months; DROP TABLE runs; "
                            "DROP TABLE reports;")
     conn.executescript(SCHEMA)
+    # Столбцы, появившиеся в новых версиях: добавляем в существующую базу без потери данных
+    if "period_auto" not in [row[1] for row in conn.execute("PRAGMA table_info(runs)")]:
+        conn.execute("ALTER TABLE runs ADD COLUMN period_auto INTEGER DEFAULT 0")
     conn.commit()
     conn.close()
