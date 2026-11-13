@@ -38,7 +38,8 @@
     </div>
     <p class="sub">Месяц строки взят из столбца «{{ run.date_column }}».</p>
   {% elif not run.period_from %}
-    <p class="note warn">Период не указан, и взять его из файла не удалось: в отчёте не найден столбец с датой.
+    <p class="note warn">Период не указан, и взять его из файла не удалось:
+      {{ summary.period_note or 'в отчёте не найден столбец с датой.' }}
       Поэтому разбивки по месяцам нет, и в сетке эта сверка не показывается.
       Нажмите «Сверить заново» и укажите период, либо задайте столбец с датой в
       <a href="{{ url_for('dictionaries', system=run.system_id) }}#reports">справочнике отчётов</a>.</p>
@@ -59,7 +60,71 @@
   <h2>Расхождения в строках</h2>
   <p class="sub">Показано {{ (page - 1) * 50 + 1 }}–{{ [page * 50, total]|min }} из {{ total }}.
     {% if stored < bad_rows %}На сайте хранятся первые {{ stored }} строк, все — в Excel-отчёте.{% endif %}
-    <label class="check inline"><input type="checkbox" id="only-diff"> Только столбцы с отличиями</label></p>
+    Вид:
+    {% if view == 'table' %}<a href="{{ url_for('run', run_id=run.id, month=month or none) }}">карточки</a> · <b>таблица</b>
+      <label class="check inline"><input type="checkbox" id="only-diff"> Только столбцы с отличиями</label>
+    {% else %}<b>карточки</b> · <a href="{{ url_for('run', run_id=run.id, month=month or none, view='table') }}">таблица</a>{% endif %}</p>
+
+  {% if view != 'table' %}
+  {# Карточки: одна запись - одна карточка, в ней только отличающиеся поля #}
+  {% for grp in groups %}
+    {% if many_sheets %}<h3>Лист «{{ grp.sheet }}»</h3>{% endif %}
+    {% for r in grp.rows %}
+    <div class="rec {{ r.kind }}">
+      <div class="rec-head">
+        <span class="rec-title">
+          {% if r.kind == 'changed' %}Строка {{ r.row_a }} в {{ dwh_a }}{% if r.row_b != r.row_a %} · строка {{ r.row_b }} в {{ dwh_b }}{% else %} и в {{ dwh_b }}{% endif %}
+          {% elif r.kind == 'only_a' %}Строка {{ r.row_a }} в {{ dwh_a }}
+          {% else %}Строка {{ r.row_b }} в {{ dwh_b }}{% endif %}
+        </span>
+        {% if r.kind == 'changed' %}<span class="tag warn">{{ r.count }}</span>
+        {% elif r.kind == 'only_a' %}<span class="tag bad">нет в {{ dwh_b }}</span>
+        {% else %}<span class="tag bad">нет в {{ dwh_a }}</span>{% endif %}
+        {% if r.month %}<span class="tag">{{ month_title(r.month) }} {{ r.month[:4] }}</span>{% endif %}
+      </div>
+      {% if r.ident %}
+      <div class="rec-ident">{% for (letter, name), v in r.ident %}<span><small>{{ name }}</small>{{ v }}</span>{% endfor %}</div>
+      {% endif %}
+      {% if r.kind == 'changed' %}
+      <table class="fields">
+        <thead><tr><th>Поле</th><th>{{ dwh_a }}</th><th>{{ dwh_b }}</th><th>Что не так</th></tr></thead>
+        <tbody>
+        {% for (letter, name), va, vb, note in r.diffs %}
+        <tr><td class="fname"><small>{{ letter }}</small>{{ name }}</td>
+            <td class="va">{% if va is none %}<span class="nil">пусто</span>{% else %}{{ va }}{% endif %}</td>
+            <td class="vb">{% if vb is none %}<span class="nil">пусто</span>{% else %}{{ vb }}{% endif %}</td>
+            <td class="why">{{ note }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+      <details class="rec-all">
+        <summary>Вся строка: {{ r.fields }}</summary>
+        <table class="fields">
+          {% if r.kind == 'changed' %}
+          <thead><tr><th>Поле</th><th>{{ dwh_a }}</th><th>{{ dwh_b }}</th></tr></thead>
+          <tbody>
+          {% for (letter, name), va, vb, differs in r.full %}
+          <tr class="{{ 'd' if differs }}"><td class="fname"><small>{{ letter }}</small>{{ name }}</td>
+              <td class="va">{% if va is none %}<span class="nil quiet">пусто</span>{% else %}{{ va }}{% endif %}</td>
+              <td class="vb">{% if vb is none %}<span class="nil quiet">пусто</span>{% else %}{{ vb }}{% endif %}</td></tr>
+          {% endfor %}
+          </tbody>
+          {% else %}
+          <thead><tr><th>Поле</th><th>Значение</th></tr></thead>
+          <tbody>
+          {% for (letter, name), va, vb, differs in r.full %}
+          <tr><td class="fname"><small>{{ letter }}</small>{{ name }}</td>
+              <td class="va">{% if va is none %}<span class="nil quiet">пусто</span>{% else %}{{ va }}{% endif %}</td></tr>
+          {% endfor %}
+          </tbody>
+          {% endif %}
+        </table>
+      </details>
+    </div>
+    {% endfor %}
+  {% endfor %}
+  {% else %}
   {% for grp in groups %}
     {% if many_sheets %}<h3>Лист «{{ grp.sheet }}»</h3>{% endif %}
     <div class="scroll">
@@ -88,16 +153,17 @@
     </table>
     </div>
   {% endfor %}
+  <p class="legend"><span class="x">значение</span> отличается · <span class="e">(пусто)</span> не заполнено ·
+    <span class="only">значение</span> строки нет в другом DWH · <span class="same">значение</span> совпадает</p>
+  {% endif %}
   {% if not groups %}<p class="sub">За этот месяц расхождений в строках нет.</p>{% endif %}
   {% if pages > 1 %}
   <div class="pager">
-    {% if page > 1 %}<a class="btn" href="{{ url_for('run', run_id=run.id, month=month or none, page=page - 1) }}">← Назад</a>{% endif %}
+    {% if page > 1 %}<a class="btn" href="{{ url_for('run', run_id=run.id, month=month or none, view=view or none, page=page - 1) }}">← Назад</a>{% endif %}
     <span>Страница {{ page }} из {{ pages }}</span>
-    {% if page < pages %}<a class="btn" href="{{ url_for('run', run_id=run.id, month=month or none, page=page + 1) }}">Дальше →</a>{% endif %}
+    {% if page < pages %}<a class="btn" href="{{ url_for('run', run_id=run.id, month=month or none, view=view or none, page=page + 1) }}">Дальше →</a>{% endif %}
   </div>
   {% endif %}
-  <p class="legend"><span class="x">значение</span> отличается · <span class="e">(пусто)</span> не заполнено ·
-    <span class="only">значение</span> строки нет в другом DWH · <span class="same">значение</span> совпадает</p>
   {% endif %}
 
   {% if summary.tech %}

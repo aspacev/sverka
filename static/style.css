@@ -126,6 +126,33 @@ table.diff td.hint { white-space: normal; min-width: 220px; color: var(--muted);
 .tech { color: var(--muted); background: var(--gray-bg); }
 .legend .x, .legend .e, .legend .only, .legend .same { padding: 2px 8px; border-radius: 6px; }
 table.diff .hidden-col { display: none; }
+
+/* Карточки расхождений: одна запись - одна карточка */
+.rec { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 18px 10px; margin: 0 0 14px; max-width: 1000px; }
+.rec-head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.rec-title { font-weight: 600; margin-right: 4px; }
+.tag { font-size: 12px; padding: 2px 9px; border-radius: 6px; background: var(--gray-bg); color: var(--muted); white-space: nowrap; }
+.tag.warn { background: var(--warn-bg); color: var(--warn); }
+.tag.bad { background: var(--bad-bg); color: var(--bad); }
+.rec-ident { display: flex; gap: 4px 22px; flex-wrap: wrap; font-size: 14px; margin: 8px 0 2px; }
+.rec-ident small { display: block; font-size: 12px; }
+table.fields { margin-top: 10px; font-size: 14px; table-layout: fixed; }
+table.fields th { font-size: 12px; padding: 6px 10px; background: var(--gray-bg); white-space: normal; }
+table.fields th:first-child { border-radius: 6px 0 0 6px; }
+table.fields th:last-child { border-radius: 0 6px 6px 0; }
+table.fields td { padding: 8px 10px; overflow-wrap: anywhere; }
+table.fields tbody tr:first-child td { border-top: none; }
+table.fields td.fname { width: 30%; color: var(--muted); }
+table.fields td.fname small { display: inline-block; min-width: 26px; font-size: 12px; opacity: .75; }
+table.fields td.va, table.fields td.vb { font-weight: 600; }
+table.fields td.why { width: 22%; font-size: 13px; color: var(--muted); }
+.nil { font-weight: 400; font-style: italic; font-size: 13px; color: var(--bad); background: var(--bad-bg); padding: 1px 8px; border-radius: 6px; }
+.nil.quiet { color: var(--muted); background: none; padding: 0; }
+.rec-all { margin: 8px 0 0; }
+.rec-all summary { font-size: 13px; margin-bottom: 4px; }
+.rec-all table.fields td.va, .rec-all table.fields td.vb { font-weight: 400; }
+.rec-all table.fields tr.d td { background: var(--warn-bg); }
+.rec-all table.fields tr.d td.va, .rec-all table.fields tr.d td.vb { font-weight: 600; color: var(--warn); }
 .checks { max-width: 1000px; }
 
 .line { display: flex; gap: 10px; align-items: center; padding: 6px 0; border-top: 1px solid var(--line); flex-wrap: wrap; }

@@ -182,17 +182,23 @@ def _compare(conn, data_dir, run_id, file_a, file_b, system_a, system_b, report,
                 found = found or str(column).strip()
 
     # Период не задан: берём его из дат в файлах, целыми месяцами
-    period_auto = False
+    period_auto, period_note = False, None
     if period_from is None:
         dates = [d for info in sheets.values() for df, column in info
                  if df is not None and column is not None
                  for d in map(to_date, df[column].tolist()) if d is not None]
-        if dates and len(months_between(min(dates), max(dates))) <= MAX_AUTO_MONTHS:
+        span = len(months_between(min(dates), max(dates))) if dates else 0
+        if 0 < span <= MAX_AUTO_MONTHS:
             period_from = month_bounds(month_key(min(dates)))[0]
             period_to = month_bounds(month_key(max(dates)))[1]
             period_auto = True
         else:
-            found = None       # дат нет или разброс слишком велик: без разбивки
+            if span:           # даты есть, но разброс слишком велик
+                period_note = (f"в столбце «{found}» даты с {min(dates):%d.%m.%Y} по "
+                               f"{max(dates):%d.%m.%Y} — это {span} "
+                               f"{ce.plural(span, 'месяц', 'месяца', 'месяцев')}, больше "
+                               f"допустимых {MAX_AUTO_MONTHS}.")
+            found = None       # без разбивки по месяцам
 
     def month_of(label, row_a, row_b):
         if period_from is None:
@@ -262,7 +268,7 @@ def _compare(conn, data_dir, run_id, file_a, file_b, system_a, system_b, report,
 
     t = res.totals
     summary = {
-        "tables": tables,
+        "tables": tables, "period_note": period_note,
         "checks": [c for c in res.checks if c["Результат"] != ce.OK or c["Комментарий"]],
         "whole": [(s, c, show(v1), show(v2)) for s, c, v1, v2 in res.whole],
         "tech": [(s, c, show(v1), show(v2)) for s, c, v1, v2 in res.tech],

@@ -179,9 +179,19 @@ def test_run_with_month_breakdown(site):
     assert "Есть расхождения: 3 расхождения в строках" in html
     assert "Июль 2026:" in html and "Сентябрь 2026:" in html
     assert "выгрузка datacore.xlsx" in html
+    # карточки: одна запись - одна карточка, в ней только отличающиеся поля
     july = page(site, "/runs/1?month=2026-07")
-    assert july.count('class="first changed"') == 1
-    assert '<td class="x">10</td>' in july and '<td class="x">11</td>' in july
+    assert july.count('class="rec changed"') == 1 and "Строка 2 в datacore и в nooga" in july
+    assert '<td class="va">10</td>' in july and '<td class="vb">11</td>' in july
+    assert "значения разные" in july and "1 отличие" in july and "Вся строка: 4 поля" in july
+    assert "<small>ID</small>a1" in july                      # по чему узнать запись
+    assert july.count('<td class="why">') == 1               # совпавшие поля не показаны
+    september = page(site, "/runs/1?month=2026-09")
+    assert 'class="rec only_a"' in september and "нет в nooga" in september
+    # прежний вид - широкой таблицей
+    table = page(site, "/runs/1?month=2026-07&view=table")
+    assert table.count('class="first changed"') == 1 and 'class="rec ' not in table
+    assert '<td class="x">10</td>' in table and '<td class="x">11</td>' in table
     assert "расхождений в строках нет" in page(site, "/runs/1?month=2026-08")
 
     excel = site.get("/runs/1/excel")
@@ -199,6 +209,9 @@ def test_empty_cell_is_marked(site):
     other["Клиент"][1] = None
     site.compare(BASE, other)
     html = page(site, "/runs/1")
+    assert '<td class="va">Петров</td>' in html and "не заполнено в nooga" in html
+    assert '<td class="vb"><span class="nil">пусто</span></td>' in html
+    html = page(site, "/runs/1?view=table")
     assert '<td class="e">(пусто)</td>' in html and '<td class="x">Петров</td>' in html
 
 
@@ -281,6 +294,9 @@ def test_period_from_file_ignores_wild_dates(site):
     site.compare(wild, wild, period=("", ""))
     run = site.query("SELECT * FROM runs")[0]
     assert (run["status"], run["period_from"], run["by_month"]) == ("ok", "", 0)
+    html = page(site, "/runs/1")
+    assert "в столбце «Дата» даты с 01.01.1990 по 28.09.2026" in html
+    assert "больше допустимых 60" in html
 
 
 def test_options_are_applied(site):

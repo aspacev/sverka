@@ -48,6 +48,42 @@ def safe_name(name):
     return name or "file.xlsx"
 
 
+NOTES = {"empty_a": f"не заполнено в {DWH_A}", "empty_b": f"не заполнено в {DWH_B}",
+         "value": "значения разные", "form": "разная форма записи"}
+
+
+def split_label(label):
+    """«F: VÖEN» -> («F», «VÖEN»): буква столбца Excel и название."""
+    letter, sep, name = str(label).partition(": ")
+    return (letter, name) if sep else ("", str(label))
+
+
+def card(row, group):
+    """
+    Данные карточки расхождения: по чему узнать запись (ident), какие поля
+    отличаются (diffs) и вся строка целиком (full).
+    """
+    labels = [split_label(c) for c in group["columns"]]
+    first_whole, first_tech = group["first_whole"], group["first_tech"]
+    a, b, kinds = row["a"], row["b"], row["kinds"]
+    base = a if a is not None else b
+    get = lambda vals, i: vals[i] if vals is not None and i < len(vals) else None  # noqa: E731
+
+    differs = sorted(int(k) for k in kinds if int(k) < first_whole)
+    diffs = [(labels[i], get(a, i), get(b, i), NOTES.get(kinds[str(i)], ""))
+             for i in differs if i < len(labels)]
+    # Запись узнаём по первым заполненным полям, которые в обоих DWH одинаковы
+    ident = [(labels[i], base[i]) for i in range(min(first_whole, len(base)))
+             if str(i) not in kinds and base[i] is not None][:3]
+    full = [(labels[i], get(a, i) if a is not None else get(b, i), get(b, i),
+             str(i) in kinds or first_whole <= i < first_tech)
+            for i in range(len(labels))]
+    n = len(diffs)
+    return {"diffs": diffs, "ident": ident, "full": full,
+            "count": f"{n} {ce.plural(n, 'отличие', 'отличия', 'отличий')}",
+            "fields": f"{len(full)} {ce.plural(len(full), 'поле', 'поля', 'полей')}"}
+
+
 def lines(text):
     return list(dict.fromkeys(x.strip() for x in (text or "").splitlines() if x.strip()))
 
@@ -217,16 +253,20 @@ def create_app(data_dir=None):
                 groups.append({"sheet": row["sheet"], "columns": t["columns"],
                                "first_tech": n - t["tech"],
                                "first_whole": n - t["tech"] - t["whole"], "rows": []})
-            groups[-1]["rows"].append({
+            item = {
                 "kind": row["kind"], "row_a": row["row_a"], "row_b": row["row_b"],
                 "month": row["month"], "hint": row["hint"],
                 "a": json.loads(row["vals_a"]) if row["vals_a"] else None,
                 "b": json.loads(row["vals_b"]) if row["vals_b"] else None,
-                "kinds": json.loads(row["kinds"] or "{}")})
+                "kinds": json.loads(row["kinds"] or "{}")}
+            item.update(card(item, groups[-1]))
+            groups[-1]["rows"].append(item)
         stored = db().execute("SELECT COUNT(*) FROM run_diffs WHERE run_id = ?",
                               (run_id,)).fetchone()[0]
+        view = "table" if request.args.get("view") == "table" else ""
         return render_template(
             "run.html", run=run, summary=summary, months=months, month=month, groups=groups,
+            view=view,
             total=total, page=page, pages=max(1, -(-total // PAGE)), stored=stored,
             bad_rows=run["changed"] + run["only_a"] + run["only_b"],
             many_sheets=len(tables) > 1, active="history")
