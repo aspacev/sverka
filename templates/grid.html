@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Сетка сверок{% endblock %}
+{% block content %}
+<h1>Что сверено: {{ dwh_a }} ↔ {{ dwh_b }}</h1>
+{% if not reports or not systems %}
+<div class="card empty">
+  <p>Сначала заполните справочники: нужен хотя бы один отчёт и одна система.</p>
+  <a class="btn primary" href="{{ url_for('dictionaries') }}">Открыть справочники</a>
+</div>
+{% else %}
+<form class="filters" method="get">
+  <span class="sub">Система:</span>
+  <select name="system" data-auto>{% for s in systems %}<option value="{{ s.id }}" {{ 'selected' if s.id == system }}>{{ s.name }}</option>{% endfor %}</select>
+  <input type="search" id="grid-q" placeholder="Поиск отчёта" autocomplete="off">
+  <select id="grid-f">
+    <option value="">Все отчёты</option>
+    <option value="none">Есть несверенное</option>
+    <option value="bad">С расхождениями</option>
+  </select>
+  <select name="n" data-auto>
+    <option value="6" {{ 'selected' if n == 6 }}>6 месяцев</option>
+    <option value="12" {{ 'selected' if n == 12 }}>12 месяцев</option>
+  </select>
+  <input type="hidden" name="end" value="{{ end }}">
+</form>
+
+{% if not rows %}
+<div class="card empty">
+  <p>У этой системы пока нет отчётов.</p>
+  <a class="btn primary" href="{{ url_for('dictionaries', system=system) }}#reports">Добавить отчёты</a>
+</div>
+{% else %}
+<div class="gridbar">
+  <span>Сверено за все показанные месяцы: <b>{{ done }} из {{ rows|length }}</b> · без расхождений: <b>{{ clean }}</b></span>
+  <span class="move">
+    <a class="btn" href="{{ url_for('grid', system=system, n=n, end=prev) }}">← Раньше</a>
+    {% if end != today %}<a class="btn" href="{{ url_for('grid', system=system, n=n) }}">Сегодня</a>{% endif %}
+    <a class="btn" href="{{ url_for('grid', system=system, n=n, end=next) }}">Позже →</a>
+  </span>
+</div>
+
+<div class="scroll">
+<table class="grid">
+  <thead><tr><th>Отчёт</th>{% for m in months %}<th>{{ month_title(m) }}<small>{{ m[:4] }}</small></th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for row in rows %}
+  <tr data-name="{{ row.report.name|lower }}" data-states="{{ row.states }}">
+    <td class="name">{{ row.report.name }}</td>
+    {% for c in row.cells %}
+      {% if c.kind == 'no' %}
+      <td><a class="cell no" title="Не сверяли. Нажмите, чтобы сверить" href="{{ url_for('new', report=row.report.id, system=system, **{'from': c['from'], 'to': c['to']}) }}">+</a></td>
+      {% else %}
+      <td colspan="{{ c.span }}"><a class="cell {{ c.kind }}" title="{{ c.tip }}" href="{{ url_for('run', run_id=c.run.id) }}">{{ c.text }}</a></td>
+      {% endif %}
+    {% endfor %}
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="sub" id="grid-empty" hidden>Под эти условия не подходит ни один отчёт.</p>
+<p class="legend"><span class="cell ok">совпало</span> расхождений нет · <span class="cell bad">12</span> строк с расхождениями за месяц ·
+  <span class="cell part">часть</span> сверена часть месяца · <span class="cell no">+</span> не сверяли</p>
+{% endif %}
+{% endif %}
+{% endblock %}

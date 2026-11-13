@@ -1,0 +1,10 @@
+data
+.git
+.claude
+.pytest_cache
+__pycache__
+*.pyc
+test_*.py
+requirements-dev.txt
+run.bat
+README.md

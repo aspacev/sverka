@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}{{ run.report }} — сверка{% endblock %}
+{% block content %}
+{% set kind, label = run_label(run) %}
+<h1>{{ run.report }} · {{ run.system }}</h1>
+<p class="sub">{{ dwh_a }} ↔ {{ dwh_b }} · период {{ run.period_from|d }} — {{ run.period_to|d }} · сверено {{ run.created_at|dt }} ·
+  файлы: {{ run.file_a }} и {{ run.file_b }}</p>
+
+{% if run.status == 'error' %}
+  <p class="verdict err">Сверка не выполнена</p>
+  <div class="card"><p><b>Причина:</b> {{ run.error_text }}</p>
+  <p class="sub">Проверьте файлы и запустите сверку ещё раз.</p></div>
+{% else %}
+  <p class="verdict {{ kind }}">{% if run.status == 'ok' %}Данные совпадают{% else %}Есть расхождения{% if bad_rows %}: {{ plural_diff(bad_rows) }} в строках{% endif %}{% endif %}</p>
+
+  <div class="metrics">
+    <div><span>Строк в {{ dwh_a }}</span><b>{{ run.rows_a|num }}</b></div>
+    <div><span>Строк в {{ dwh_b }}</span><b>{{ run.rows_b|num }}</b></div>
+    <div><span>Совпало полностью</span><b>{{ run.exact|num }}</b></div>
+    <div><span>Строк с отличиями</span><b>{{ run.changed|num }}</b></div>
+    <div><span>Только в {{ dwh_a }}</span><b>{{ run.only_a|num }}</b></div>
+    <div><span>Только в {{ dwh_b }}</span><b>{{ run.only_b|num }}</b></div>
+  </div>
+
+  <h2>По месяцам</h2>
+  {% if run.by_month %}
+    <div class="chips">
+      <a class="chip {{ 'on' if not month }}" href="{{ url_for('run', run_id=run.id) }}">Все</a>
+      {% for m in months %}
+      <a class="chip {{ 'bad' if m.bad_rows else 'ok' }} {{ 'on' if month == m.month }}"
+         href="{{ url_for('run', run_id=run.id, month=m.month) }}">{{ month_title(m.month) }} {{ m.month[:4] }}:
+         {{ m.bad_rows if m.bad_rows else 'совпало' }}{{ ' · часть месяца' if m.partial }}</a>
+      {% endfor %}
+      {% if run.unplaced %}
+      <a class="chip bad {{ 'on' if month == 'none' }}" href="{{ url_for('run', run_id=run.id, month='none') }}">Без даты или вне периода: {{ run.unplaced }}</a>
+      {% endif %}
+    </div>
+    <p class="sub">Месяц строки взят из столбца «{{ run.date_column }}».</p>
+  {% else %}
+    <p class="note warn">В отчёте не найден столбец с датой, поэтому расхождения не разложены по месяцам.
+      Столбец можно указать в <a href="{{ url_for('dictionaries') }}#reports">справочнике отчётов</a> и сверить заново.</p>
+  {% endif %}
+
+  {% if summary.structure or summary.whole %}
+  <h2>Отличия во всём файле</h2>
+  <table class="plain">
+    {% for d in summary.structure %}<tr><td>{{ d['Где'] }}</td><td class="x">{{ d['Что отличается'] }}</td></tr>{% endfor %}
+    {% for sheet, col, v1, v2 in summary.whole %}<tr><td>Столбец {{ col }}</td><td class="x">Во всех строках: «{{ v1 }}» в {{ dwh_a }}, «{{ v2 }}» в {{ dwh_b }}</td></tr>{% endfor %}
+  </table>
+  {% endif %}
+
+  {% if stored %}
+  <h2>Расхождения в строках</h2>
+  <p class="sub">Показано {{ (page - 1) * 50 + 1 }}–{{ [page * 50, total]|min }} из {{ total }}.
+    {% if stored < bad_rows %}На сайте хранятся первые {{ stored }} строк, все — в Excel-отчёте.{% endif %}
+    <label class="check inline"><input type="checkbox" id="only-diff"> Только столбцы с отличиями</label></p>
+  {% for grp in groups %}
+    {% if many_sheets %}<h3>Лист «{{ grp.sheet }}»</h3>{% endif %}
+    <div class="scroll">
+    <table class="diff">
+      <thead><tr><th>DWH</th><th>Строка</th>
+        {% for c in grp.columns %}<th>{{ c }}{% if loop.index0 >= grp.first_tech %}<br><small>технический</small>{% endif %}</th>{% endfor %}
+        <th>Что проверить</th></tr></thead>
+      <tbody>
+      {% for r in grp.rows %}
+        {% for side, vals, num, name in (('a', r.a, r.row_a, dwh_a), ('b', r.b, r.row_b, dwh_b)) if vals is not none %}
+        <tr class="{{ 'first' if loop.first }} {{ r.kind }}">
+          <td class="sys">{{ name }}</td><td>{{ num }}</td>
+          {% for v in vals %}
+            {% set k = r.kinds.get(loop.index0|string) %}
+            {% if loop.index0 >= grp.first_tech %}<td class="tech">{{ v if v is not none }}</td>
+            {% elif r.kind != 'changed' %}<td class="only">{{ v if v is not none }}</td>
+            {% elif k and v is none %}<td class="e">(пусто)</td>
+            {% elif k or loop.index0 >= grp.first_whole %}<td class="x">{{ v if v is not none }}</td>
+            {% else %}<td class="same">{{ v if v is not none }}</td>{% endif %}
+          {% endfor %}
+          {% if loop.first %}<td class="hint" rowspan="{{ 2 if r.kind == 'changed' else 1 }}">{{ r.hint }}</td>{% endif %}
+        </tr>
+        {% endfor %}
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  {% endfor %}
+  {% if not groups %}<p class="sub">За этот месяц расхождений в строках нет.</p>{% endif %}
+  {% if pages > 1 %}
+  <div class="pager">
+    {% if page > 1 %}<a class="btn" href="{{ url_for('run', run_id=run.id, month=month or none, page=page - 1) }}">← Назад</a>{% endif %}
+    <span>Страница {{ page }} из {{ pages }}</span>
+    {% if page < pages %}<a class="btn" href="{{ url_for('run', run_id=run.id, month=month or none, page=page + 1) }}">Дальше →</a>{% endif %}
+  </div>
+  {% endif %}
+  <p class="legend"><span class="x">значение</span> отличается · <span class="e">(пусто)</span> не заполнено ·
+    <span class="only">значение</span> строки нет в другом DWH · <span class="same">значение</span> совпадает</p>
+  {% endif %}
+
+  {% if summary.tech %}
+  <h2>Не учтено в итоге</h2>
+  <table class="plain">
+    {% for sheet, col, v1, v2 in summary.tech %}<tr><td>Столбец {{ col }}</td><td>Отметка времени, одна на весь файл: «{{ v1 }}» и «{{ v2 }}»</td></tr>{% endfor %}
+  </table>
+  {% endif %}
+
+  {% if summary.checks %}
+  <details class="checks"><summary>Все проверки и замечания</summary>
+    <table class="plain">
+    {% for c in summary.checks %}
+      <tr><td>{{ ('[' ~ c['Лист'] ~ '] ') if many_sheets and c['Лист'] }}{{ c['Проверка'] }}</td>
+          <td>{{ c['Результат'] }}</td>
+          <td>{% if c['a'] != '' or c['b'] != '' %}{{ c['a'] }} / {{ c['b'] }}{% endif %}</td>
+          <td>{{ c['Комментарий'] }}</td></tr>
+    {% endfor %}
+    </table>
+  </details>
+  {% endif %}
+{% endif %}
+
+<div class="actions left">
+  {% if run.status != 'error' %}<a class="btn primary" href="{{ url_for('run_excel', run_id=run.id) }}">Скачать Excel-отчёт</a>{% endif %}
+  <a class="btn" href="{{ url_for('new', report=run.report_id, system=run.system_id, **{'from': run.period_from, 'to': run.period_to}) }}">Сверить заново</a>
+  <form method="post" action="{{ url_for('run_delete', run_id=run.id) }}" data-confirm="Удалить эту сверку вместе с файлами?">
+    <button class="btn danger" type="submit">Удалить</button>
+  </form>
+</div>
+{% endblock %}

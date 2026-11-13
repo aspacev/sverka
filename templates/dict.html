@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Справочники{% endblock %}
+{% block content %}
+<h1>Справочники</h1>
+<p class="sub">Системы — это источники, которые выгружают данные в {{ dwh_a }} и {{ dwh_b }}. Сами DWH заводить не нужно.
+  У каждой системы свой список отчётов.</p>
+
+<h2 id="systems">Системы <small>{{ systems|length }}</small></h2>
+<div class="card">
+  {% for s in systems %}
+  <div class="line">
+    <form method="post" action="{{ url_for('dict_save', kind='systems', item_id=s.id) }}">
+      <input name="name" value="{{ s.name }}" required>
+      <button class="btn" type="submit">Сохранить</button>
+    </form>
+    <span class="sub"><a href="{{ url_for('dictionaries', system=s.id) }}#reports">отчётов: {{ s.used }}</a></span>
+    <form method="post" action="{{ url_for('dict_delete', kind='systems', item_id=s.id) }}" data-confirm="Удалить систему «{{ s.name }}»?">
+      <button class="btn danger" type="submit" {{ 'disabled title="Сначала удалите отчёты этой системы"'|safe if s.used }}>Удалить</button>
+    </form>
+  </div>
+  {% else %}<p class="sub">Систем пока нет.</p>{% endfor %}
+  <form class="add" method="post" action="{{ url_for('dict_add', kind='systems') }}">
+    <textarea name="names" rows="2" placeholder="Название системы" required></textarea>
+    <button class="btn primary" type="submit">Добавить системы</button>
+    <small>Можно сразу несколько — каждая с новой строки.</small>
+  </form>
+</div>
+
+<h2 id="reports">Отчёты</h2>
+{% if not systems %}
+<p class="sub">Сначала добавьте хотя бы одну систему.</p>
+{% else %}
+<form class="filters" method="get" action="{{ url_for('dictionaries') }}#reports">
+  <span class="sub">Система:</span>
+  <select name="system" data-auto>{% for s in systems %}<option value="{{ s.id }}" {{ 'selected' if s.id == chosen }}>{{ s.name }} ({{ s.used }})</option>{% endfor %}</select>
+  {% if reports|length > 8 %}<input type="search" id="dict-q" placeholder="Поиск отчёта" autocomplete="off">{% endif %}
+</form>
+<div class="card">
+  {% if reports %}
+  <div class="line head"><span>Название</span><span>Столбец с датой</span></div>
+  {% endif %}
+  {% for r in reports %}
+  <div class="line report" data-name="{{ r.name|lower }}">
+    <form method="post" action="{{ url_for('dict_save', kind='reports', item_id=r.id) }}">
+      <input type="hidden" name="system" value="{{ chosen }}">
+      <input name="name" value="{{ r.name }}" required>
+      <input name="date_column" value="{{ r.date_column or '' }}" placeholder="сайт найдёт сам">
+      <button class="btn" type="submit">Сохранить</button>
+    </form>
+    <span class="sub">{% if r.date_source == 'manual' %}указан вами{% elif r.date_column %}найден сайтом{% elif r.used %}не найден{% else %}определится при сверке{% endif %} · сверок: {{ r.used }}</span>
+    <form method="post" action="{{ url_for('dict_delete', kind='reports', item_id=r.id) }}" data-confirm="Удалить отчёт «{{ r.name }}»?">
+      <input type="hidden" name="system" value="{{ chosen }}">
+      <button class="btn danger" type="submit" {{ 'disabled title="Есть сверки по этому отчёту"'|safe if r.used }}>Удалить</button>
+    </form>
+  </div>
+  {% else %}<p class="sub">У этой системы пока нет отчётов.</p>{% endfor %}
+  <form class="add" method="post" action="{{ url_for('dict_add', kind='reports') }}">
+    <input type="hidden" name="system" value="{{ chosen }}">
+    <textarea name="names" rows="4" placeholder="ПКС-07 Продажи&#10;ПКС-08 Остатки" required></textarea>
+    <button class="btn primary" type="submit">Добавить отчёты в эту систему</button>
+    <small>Можно вставить весь список сразу — каждый отчёт с новой строки.</small>
+  </form>
+</div>
+<p class="sub">Столбец с датой нужен, чтобы разложить расхождения по месяцам. Оставьте поле пустым — сайт найдёт столбец сам при первой сверке.</p>
+{% endif %}
+{% endblock %}

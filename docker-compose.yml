@@ -1,0 +1,13 @@
+services:
+  sverka:
+    build: .
+    container_name: sverka
+    # Сайт доступен только с этого компьютера: http://localhost:5000
+    ports:
+      - "127.0.0.1:5000:5000"
+    # База и файлы сверок хранятся в папке data рядом с этим файлом
+    volumes:
+      - ./data:/data
+    environment:
+      TZ: Asia/Baku            # часовой пояс для времени сверок (например, Europe/Moscow)
+    restart: unless-stopped

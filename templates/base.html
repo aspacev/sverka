@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Сверка отчётов{% endblock %}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header>
+  <a class="brand" href="{{ url_for('grid') }}">Сверка отчётов</a>
+  <nav>
+    <a href="{{ url_for('new') }}" class="{{ 'on' if active == 'new' }}">Новая сверка</a>
+    <a href="{{ url_for('grid') }}" class="{{ 'on' if active == 'grid' }}">Сетка</a>
+    <a href="{{ url_for('history') }}" class="{{ 'on' if active == 'history' }}">История</a>
+    <a href="{{ url_for('dictionaries') }}" class="{{ 'on' if active == 'dict' }}">Справочники</a>
+  </nav>
+</header>
+<main>
+{% for message in get_flashed_messages() %}<p class="note">{{ message }}</p>{% endfor %}
+{% block content %}{% endblock %}
+</main>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

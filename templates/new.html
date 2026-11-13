@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Новая сверка{% endblock %}
+{% block content %}
+<h1>Новая сверка</h1>
+{% if not reports or not systems %}
+<div class="card empty">
+  <p>Сначала заполните справочники: нужен хотя бы один отчёт и одна система.</p>
+  <a class="btn primary" href="{{ url_for('dictionaries') }}">Открыть справочники</a>
+</div>
+{% else %}
+{% for e in errors %}<p class="note bad">{{ e }}</p>{% endfor %}
+<form class="card" method="post" enctype="multipart/form-data" id="new-form">
+  <div class="two">
+    <label>Система
+      <select name="system" id="new-system" required>
+        <option value="">Выберите систему</option>
+        {% for s in systems %}<option value="{{ s.id }}" {{ 'selected' if form.get('system') == s.id|string }}>{{ s.name }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Отчёт
+      <select name="report" id="new-report" required>
+        <option value="">Выберите отчёт</option>
+        {% for r in reports %}<option value="{{ r.id }}" data-system="{{ r.system_id }}" {{ 'selected' if form.get('report') == r.id|string }}>{{ r.name }}</option>{% endfor %}
+      </select>
+    </label>
+  </div>
+
+  <div class="two">
+    <label>Период с<input type="date" name="from" id="from" value="{{ form.get('from', '') }}" required></label>
+    <label>Период по<input type="date" name="to" id="to" value="{{ form.get('to', '') }}" required></label>
+  </div>
+  <div class="quick">
+    <button type="button" data-period="month">Прошлый месяц</button>
+    <button type="button" data-period="quarter">Прошлый квартал</button>
+    <button type="button" data-period="year">С начала года</button>
+  </div>
+
+  <div class="two">
+    {% for side, title in (('a', 'Файл из ' ~ dwh_a ~ ' (эталон)'), ('b', 'Файл из ' ~ dwh_b)) %}
+    <div>
+      <p class="field">{{ title }}</p>
+      <label class="drop">
+        <input type="file" name="file_{{ side }}" accept=".xlsx,.xlsm" required>
+        <span>Перетащите файл Excel или нажмите, чтобы выбрать</span>
+      </label>
+    </div>
+    {% endfor %}
+  </div>
+
+  <details {{ 'open' if form.get('keys') or form.get('ignore') or form.get('skip_first') or form.get('text_numbers') }}>
+    <summary>Дополнительные настройки</summary>
+    <label>Ключевые столбцы<input name="keys" value="{{ form.get('keys', '') }}" placeholder="Номер договора; Дата">
+      <small>По ним связываются строки. Несколько — через точку с запятой. Пусто — сайт подберёт сам.</small></label>
+    <label>Не сравнивать столбцы<input name="ignore" value="{{ form.get('ignore', '') }}" placeholder="Комментарий; Автор">
+      <small>Несколько — через точку с запятой.</small></label>
+    <label>Строка с заголовками<input type="number" name="header" min="1" value="{{ form.get('header', '1') }}" style="width:100px"></label>
+    <label class="check"><input type="checkbox" name="skip_first" value="1" {{ 'checked' if form.get('skip_first') }}> Не сравнивать столбец A (нумерация строк)</label>
+    <label class="check"><input type="checkbox" name="text_numbers" value="1" {{ 'checked' if form.get('text_numbers') }}> Считать текст «2025» и число 2025 одинаковыми</label>
+  </details>
+
+  <div class="actions"><button class="btn primary" type="submit" id="submit">Сверить</button></div>
+</form>
+{% endif %}
+{% endblock %}
