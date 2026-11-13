@@ -2,6 +2,8 @@ data
 docs
 .git
 .gitattributes
+.env
+.env.example
 .claude
 .pytest_cache
 __pycache__
