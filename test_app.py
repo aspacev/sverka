@@ -105,7 +105,10 @@ def test_find_date_column():
 
 def test_empty_site(tmp_path):
     client = create_app(tmp_path).test_client()
-    assert client.get("/").status_code == 302
+    home = client.get("/")
+    assert home.status_code == 302 and home.headers["Location"].endswith("/history")
+    menu = page(client, "/history").split("<nav>")[1].split("</nav>")[0]
+    assert "Сетка" not in menu and menu.count("<a ") == 3     # сетка убрана из меню
     for url in ("/new", "/grid", "/history", "/dict"):
         assert client.get(url).status_code == 200
     assert "заполните справочники" in page(client, "/grid")
@@ -283,7 +286,7 @@ def test_no_period_and_no_date_column(site):
         "diff", "", 0, 0)
     assert site.query("SELECT COUNT(*) FROM run_months")[0][0] == 0
     html = page(site, "/runs/1")
-    assert "период не указан" in html and "в сетке эта сверка не показывается" in html
+    assert "период не указан" in html and "разбивки по месяцам нет" in html
     assert "не указан" in page(site, "/history")
     assert '<a class="cell bad"' not in page(site, "/grid?system=1")
     assert site.get("/runs/1/excel").status_code == 200

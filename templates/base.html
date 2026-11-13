@@ -8,10 +8,9 @@
 </head>
 <body>
 <header>
-  <a class="brand" href="{{ url_for('grid') }}">Сверка отчётов</a>
+  <a class="brand" href="{{ url_for('history') }}">Сверка отчётов</a>
   <nav>
     <a href="{{ url_for('new') }}" class="{{ 'on' if active == 'new' }}">Новая сверка</a>
-    <a href="{{ url_for('grid') }}" class="{{ 'on' if active == 'grid' }}">Сетка</a>
     <a href="{{ url_for('history') }}" class="{{ 'on' if active == 'history' }}">История</a>
     <a href="{{ url_for('dictionaries') }}" class="{{ 'on' if active == 'dict' }}">Справочники</a>
   </nav>

@@ -146,7 +146,7 @@ def create_app(data_dir=None):
 
     @app.route("/")
     def index():
-        return redirect(url_for("grid"))
+        return redirect(url_for("history"))
 
     @app.route("/new", methods=["GET", "POST"])
     def new():
@@ -318,6 +318,7 @@ def create_app(data_dir=None):
                                args=args, active="history")
 
     # ---------- сетка ----------
+    # Страница убрана из меню, но доступна по адресу /grid
 
     @app.route("/grid")
     def grid():
