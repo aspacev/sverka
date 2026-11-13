@@ -138,7 +138,8 @@ def execute(conn, data_dir, run_id, file_a, file_b, system_a, system_b, report,
 
 def _compare(conn, data_dir, run_id, file_a, file_b, system_a, system_b, report,
              period_from, period_to, options, title=None):
-    o = ce.Options(**options)
+    # Excel-отчёт всегда с подробными листами (как скрипт с параметром --full)
+    o = ce.Options(**{**options, "full": True})
     nm = ce.Names(system_a, system_b, system_a, system_b, title or report["name"])
     res = ce.compare_files(file_a, file_b, o, nm)
     book1, book2 = res.books

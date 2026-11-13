@@ -1129,7 +1129,7 @@ def read_book(path, header):
             FAST_READER = False
             raise RereadNeeded
     return pd.read_excel(path, sheet_name=None, header=header, dtype=object,
-                         **READ_OPTIONS)
+                         engine="openpyxl", **READ_OPTIONS)
 
 
 class RereadNeeded(Exception):

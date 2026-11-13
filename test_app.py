@@ -10,6 +10,7 @@ from datetime import date, datetime
 
 import pandas as pd
 import pytest
+from openpyxl import load_workbook
 
 import service
 from app import create_app
@@ -185,6 +186,11 @@ def test_run_with_month_breakdown(site):
 
     excel = site.get("/runs/1/excel")
     assert excel.status_code == 200 and excel.data[:2] == b"PK"
+    book = load_workbook(io.BytesIO(excel.data))
+    assert book.sheetnames == ["Итог", "Все проверки", "Описание различий",
+                               "Различия по ячейкам", "Столбцы"]
+    assert "ПКС-07 Продажи, CRM: datacore ↔ nooga" in book["Итог"]["A1"].value
+    assert book["Различия по ячейкам"].max_row == 4          # заголовок и три расхождения
     assert (site.data / "uploads" / "1" / "a" / "выгрузка datacore.xlsx").is_file()
 
 
